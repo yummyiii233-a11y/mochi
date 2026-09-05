@@ -1069,15 +1069,71 @@ function sealCapsule() {
   document.getElementById('capVal').textContent = '1 个在路上 · 2027-09-03 开 ›';
   toast('封好了 · 一年后见');
 }
+/* ================= 成文导出：把碎片写成一个小故事 ================= */
+const TONE_STORY = {
+  '温柔': { open: '这是一个你慢慢把日子过明白的小故事。', close: '日子不响，但都留下了。' },
+  '幽默': { open: '以下是一部主角本人毫无察觉的生活大片。', close: '——本季完结，下一季续订概率很大。' },
+  '元气': { open: '这是你热气腾腾的一段时间！', close: '继续跑，我在终点等你好消息！' },
+  '毒舌': { open: '行吧，讲讲你这阵子都干了什么。', close: '就这样吧，不算难看。' },
+};
+function timeOfDay(t) {
+  const h = parseInt(t, 10);
+  if (h < 6) return '深夜'; if (h < 9) return '清晨'; if (h < 12) return '上午';
+  if (h < 14) return '中午'; if (h < 18) return '下午'; if (h < 22) return '晚上'; return '夜里';
+}
+function storyLine(e, glue) {
+  const tod = timeOfDay(e.time);
+  const clean = t => t.replace(/^[，。]+|[。]+$/g, '');
+  if (e.badge === '决定卡') {
+    let what = clean(e.text);
+    const m = what.match(/^决定了：(.+?)(?:\s*·\s*因为：(.+?))?(?:\s*·\s*把握：(.+))?$/);
+    if (m) what = clean(m[1]) + (m[2] ? '，理由是' + clean(m[2]) : '');
+    else what = what.replace(/^决定/, '');
+    return glue + tod + '，你做了一个决定——' + what + '。';
+  }
+  if (e.badge === '记账' || /(存|花)了?\s*\d/.test(e.text))
+    return glue + tod + '，钱包也留了痕迹：' + clean(e.text) + '。';
+  return glue + tod + '，' + clean(e.text) + '。';
+}
+function buildStory() {
+  const days = {};
+  entries.forEach(e => { const d = (e.date || '9月3日 周四').split(' ')[0]; (days[d] = days[d] || []).push(e); });
+  const dayNum = d => { const m = d.match(/(\d{1,2})月(\d{1,2})日/); return m ? +m[1] * 100 + +m[2] : 999; };
+  const order = Object.keys(days).sort((a, b) => dayNum(a) - dayNum(b));
+  const T = TONE_STORY[curTone] || TONE_STORY['温柔'];
+  const glues = ['', '后来，', '再后来，', '那阵子，'];
+  const paras = order.map((d, di) => {
+    const es = days[d];
+    return d + '那天——' + es.map((e, i) => storyLine(e, i === 0 ? '' : glues[i % glues.length])).join('');
+  });
+  return '《你的一段日子》\n（Mochi 替你记着 · ' + entries.length + ' 条碎片写成 · ' + curTone + '版）\n\n'
+    + T.open + '\n\n' + paras.join('\n\n') + '\n\n' + T.close + '\n\n—— 软软地，替你记着';
+}
+function downloadText(name, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = name;
+  a.click();
+}
 function doExport() {
-  const txt = '我的 Mochi 记忆\n\n' + entries.map(e =>
+  const story = buildStory();
+  const raw = '我的 Mochi 记忆\n\n' + entries.map(e =>
     (e.date || '9月3日 周四') + ' ' + e.time + (e.badge ? ' [' + e.badge + ']' : '') + '\n' + e.text
   ).join('\n\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
-  a.download = 'Mochi-我的记忆.txt';
-  a.click();
-  toast('已导出 · 一本小日记');
+  openModal(
+    '<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:2px">导出我的记忆</div>' +
+    '<div class="muted" style="text-align:center;margin-bottom:10px">成文版 · ' + curTone + '人设执笔，原文素材一个不落</div>' +
+    '<div class="bubble" style="white-space:pre-wrap;max-height:300px;overflow-y:auto;font-size:13.5px">' + story.replace(/</g, '&lt;') + '</div>' +
+    '<button class="mbtn" style="margin-top:12px" onclick="downloadText(\'Mochi-你的一段日子.txt\', STORY_CACHE.story)">下载成文版</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="copyStory()">拷贝文字</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="downloadText(\'Mochi-我的记忆.txt\', STORY_CACHE.raw)">导出原文版</button>');
+  STORY_CACHE = { story: story, raw: raw };
+}
+let STORY_CACHE = {};
+function copyStory() {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(STORY_CACHE.story).then(() => toast('故事已拷贝，去分享吧')).catch(() => toast('长按文字手动拷贝也一样'));
+  } else toast('这台浏览器不支持一键拷贝');
 }
 function askDelete() {
   openModal(
