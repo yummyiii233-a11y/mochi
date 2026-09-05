@@ -1,0 +1,17 @@
+{
+  "name": "Mochi · 软软地，替你记着",
+  "short_name": "Mochi",
+  "description": "给怕忘记的普通人的生活记忆 App：随手捏一捏记录，记忆在关键时刻主动来找你。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF7EC",
+  "theme_color": "#FFF7EC",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

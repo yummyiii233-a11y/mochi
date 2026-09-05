@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#FFF7EC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mochi">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<title>Mochi · 交互原型 v0.2</title>
+<style>
+  :root{
+    --cream:#FFF7EC; --paper:#FFFCF5; --ink:#4A3728; --line:#F0E4D2;
+    --sub:#A08B76; --blush:#FFB3B3; --butter:#FFE28A; --matcha:#A3B18A;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    background:linear-gradient(160deg,#F6EADD,#EFE3D2);
+    font-family:'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+    color:var(--ink); min-height:100vh; display:flex; align-items:center; justify-content:center; gap:56px; padding:40px 20px; flex-wrap:wrap;
+  }
+  /* ============ 侧边说明 ============ */
+  .intro{max-width:300px}
+  .intro h1{font-size:26px; margin-bottom:6px}
+  .intro p.tag{color:var(--sub); font-size:14px; margin-bottom:22px}
+  .intro ul{list-style:none; font-size:14px; line-height:1.5}
+  .intro li{margin-bottom:12px; padding-left:22px; position:relative}
+  .intro li::before{content:''; position:absolute; left:0; top:5px; width:12px; height:12px; border-radius:50% 50% 50% 4px; background:var(--butter); border:2px solid #D9B45B}
+  .intro .ver{margin-top:20px; font-size:12px; color:var(--sub)}
+  /* ============ 手机 ============ */
+  .phone{
+    width:390px; height:800px; background:var(--paper); border-radius:54px;
+    border:10px solid #3E2F24; box-shadow:0 30px 60px rgba(74,55,40,.28);
+    position:relative; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .statusbar{height:44px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 30px 4px; font-size:14px; font-weight:600}
+  .screen{flex:1; position:relative; overflow:hidden}
+  .view{position:absolute; inset:0; overflow-y:auto; padding:8px 18px 100px; display:none; scrollbar-width:none}
+  .view::-webkit-scrollbar{display:none}
+  .view.active{display:block; animation:viewin .32s cubic-bezier(.25,.8,.3,1)}
+  @keyframes viewin{
+    from{opacity:0; transform:translateY(14px) scale(.985)}
+    to{opacity:1; transform:none}
+  }
+  .view.leaving{display:block; animation:viewout .16s ease forwards; pointer-events:none}
+  @keyframes viewout{
+    to{opacity:0; transform:translateY(-8px) scale(.99)}
+  }
+  /* ============ 通用卡片 ============ */
+  .card{background:#fff; border:2px solid var(--line); border-radius:22px; padding:16px; margin-bottom:14px}
+  .card h3{font-size:15px; margin-bottom:8px; display:flex; align-items:center; gap:6px}
+  .muted{color:var(--sub); font-size:13px}
+  .chip{display:inline-block; background:var(--cream); border:1.5px solid var(--line); color:var(--sub); font-size:12px; border-radius:999px; padding:3px 10px; margin-right:6px}
+  .ic{vertical-align:-3px}
+  .chip .ic,.btn .ic{vertical-align:-2.5px;margin-right:5px}
+  /* ============ 首页 ============ */
+  .greet{display:flex; justify-content:space-between; align-items:center; margin:6px 2px 14px}
+  .greet .hello h2{font-size:20px}
+  .greet .hello .muted{margin-top:4px}
+  .flash .quote{background:var(--cream); border-radius:14px; padding:10px 12px; font-size:14px; line-height:1.6; margin-top:8px}
+  .entry{display:flex; gap:12px; padding:12px 2px; border-bottom:1.5px dashed var(--line)}
+  .entry:last-child{border-bottom:none}
+  .entry .time{font-size:12px; color:var(--sub); width:44px; padding-top:3px; flex-shrink:0}
+  .entry .txt{font-size:14.5px; line-height:1.55}
+  .entry .txt .badge{display:inline-block; font-size:11px; color:#8A6D1F; background:var(--butter); border-radius:6px; padding:1px 7px; margin-right:6px; vertical-align:1px}
+  .entry .txt .badge.decide{background:#E7EFD9; color:#5F7443}
+  /* 贴心贴卡片 */
+  .xinx{background:linear-gradient(145deg,#FFFDF4,#FFF4D6); border-color:#EBD9A6}
+  .xinx .ref{border-left:4px solid var(--butter); padding:6px 10px; background:#FFFBEA; border-radius:0 10px 10px 0; font-size:13.5px; color:#6B5730; margin:8px 0}
+  .btn{display:inline-block; border:none; cursor:pointer; font-family:inherit; font-weight:600}
+  .btn.small{font-size:12.5px; background:var(--ink); color:#FFF7EC; border-radius:999px; padding:7px 14px}
+  .btn.small:active{transform:scale(.96)}
+  /* ============ 底栏 ============ */
+  .tabbar{
+    position:absolute; left:0; right:0; bottom:0; height:86px; z-index:30;
+    background:rgba(255,252,245,.92); backdrop-filter:blur(8px);
+    border-top:2px solid var(--line); display:flex; align-items:center; justify-content:space-around; padding:0 30px 14px;
+  }
+  .tab{
+    border:none; background:none; cursor:pointer; padding:6px 4px;
+    font-family:'Yuanti SC','YouYuan','PingFang SC','Hiragino Sans GB',sans-serif;
+    font-size:16.5px; font-weight:800; letter-spacing:.5px;
+    color:#C7B49D; display:flex; flex-direction:column; align-items:center; gap:2px;
+    border-radius:14px;
+    transition:color .22s, transform .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .tab.active{color:var(--ink); animation:tabpop .3s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes tabpop{0%{transform:scale(.88)}100%{transform:scale(1)}}
+  .tab.active::after{content:''; width:18px; height:5px; border-radius:99px; background:var(--butter); margin-top:1px; animation:barin .28s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes barin{from{width:0; opacity:0}to{width:18px; opacity:1}}
+  .tab:active{transform:scale(.88)}
+  .pin{
+    width:88px; height:88px; border-radius:50%; margin-top:-38px;
+    background:var(--cream); border:5px solid var(--ink); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+    box-shadow:0 8px 18px rgba(74,55,40,.22); font-family:inherit;
+    transition:transform .12s;
+  }
+  .pin:active{transform:scale(.9)}
+  .pin span{font-family:'Yuanti SC','YouYuan','PingFang SC','Hiragino Sans GB',sans-serif; font-size:13.5px; font-weight:800; color:var(--ink); margin-top:-4px}
+  /* ============ 捏一捏弹层 ============ */
+  .overlay{position:absolute; inset:0; background:rgba(74,55,40,.35); opacity:0; pointer-events:none; transition:opacity .25s; z-index:40}
+  .overlay.show{opacity:1; pointer-events:auto}
+  .pinmo{
+    position:absolute; left:50%; top:120px; transform:translateX(-50%); z-index:41;
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .overlay.show .pinmo{opacity:1}
+  .overlay.show .pinmo svg{animation:squash .9s ease-in-out infinite}
+  @keyframes squash{
+    0%,100%{transform:scale(1,1)}
+    35%{transform:scale(1.18,.72) translateY(14px)}
+    60%{transform:scale(.95,1.08) translateY(-6px)}
+  }
+  .sheet{
+    position:absolute; left:0; right:0; bottom:-380px; height:360px; z-index:45;
+    background:var(--paper); border-radius:30px 30px 0 0; border-top:2px solid var(--line);
+    padding:18px 20px; transition:bottom .32s cubic-bezier(.3,1.2,.4,1);
+    display:flex; flex-direction:column;
+  }
+  .sheet.show{bottom:0}
+  .sheet .grab{width:44px; height:5px; border-radius:99px; background:#DECDB6; margin:0 auto 12px}
+  .sheet textarea{
+    flex:1; resize:none; border:2px solid var(--line); border-radius:16px; background:#fff;
+    font-family:inherit; font-size:15px; padding:12px; color:var(--ink); outline:none;
+  }
+  .sheet textarea:focus{border-color:#E4C98C}
+  .sheet .quick{margin:10px 0; display:flex; gap:6px}
+  .sheet .quick .chip{flex:1; text-align:center; margin-right:0; padding:7px 2px; border-radius:12px; white-space:nowrap; display:flex; align-items:center; justify-content:center}
+  .sheet .save{
+    background:var(--butter); border:2.5px solid #D9B45B; color:#5C4A1E;
+    font-size:16px; border-radius:16px; padding:12px;
+  }
+  /* ============ 通知横幅 ============ */
+  .notif{
+    position:absolute; top:-130px; left:10px; right:10px; z-index:35;
+    background:rgba(250,246,238,.97); backdrop-filter:blur(10px);
+    border-radius:22px; padding:12px 14px; display:flex; gap:10px; align-items:flex-start;
+    box-shadow:0 12px 28px rgba(74,55,40,.25); transition:top .45s cubic-bezier(.3,1.15,.4,1); cursor:pointer;
+  }
+  .notif.show{top:52px}
+  .notif .nt{font-size:12px; color:var(--sub)}
+  .notif .nt b{color:var(--ink)}
+  .notif .nb{font-size:13.5px; line-height:1.5; margin-top:3px}
+  /* ============ 回信页 ============ */
+  .letter-card{display:flex; gap:12px}
+  .letter-card .ava{flex-shrink:0}
+  .bubble{
+    background:var(--cream); border:2px solid var(--line); border-radius:4px 20px 20px 20px;
+    padding:14px; font-size:14.5px; line-height:1.7; flex:1; min-height:120px;
+  }
+  .tones{display:flex; gap:8px; margin:14px 0}
+  .tone{
+    flex:1; text-align:center; font-size:13.5px; font-weight:600; padding:9px 0;
+    border-radius:999px; border:2px solid var(--line); background:#fff; color:var(--sub);
+    cursor:pointer; font-family:inherit; transition:all .15s;
+  }
+  .tone.on{background:var(--ink); color:var(--cream); border-color:var(--ink)}
+  .goal .bar{height:14px; background:var(--cream); border:1.5px solid var(--line); border-radius:99px; overflow:hidden; margin:10px 0 6px}
+  .goal .bar i{display:block; height:100%; width:40%; background:linear-gradient(90deg,var(--blush),#FFC9B8); border-radius:99px}
+  /* ============ Toast ============ */
+  .toast{
+    position:absolute; left:50%; bottom:110px; transform:translateX(-50%) translateY(16px);
+    background:rgba(74,55,40,.92); color:#FFF7EC; font-size:13.5px; padding:10px 18px;
+    border-radius:999px; opacity:0; transition:all .3s; z-index:70; pointer-events:none; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  /* ============ 回忆页 ============ */
+  .search{display:flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+  .search input{border:none;outline:none;flex:1;font-size:14px;font-family:inherit;background:transparent;color:var(--ink)}
+  .frow{display:flex;gap:8px;margin-bottom:12px}
+  .fchip{flex:1;text-align:center;font-size:13px;font-weight:600;padding:8px 0;border-radius:999px;border:2px solid var(--line);background:#fff;color:var(--sub);cursor:pointer;font-family:inherit}
+  .fchip.on{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+  .frow.dim{opacity:.4;pointer-events:none}
+  .qrow{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+  .qchip{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--sub);background:var(--cream);border:1.5px dashed #DECDB6;border-radius:999px;padding:6px 12px;cursor:pointer;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+  .qchip:active{transform:scale(.93)}
+  .qchip.on{background:var(--butter);border:1.5px solid #D9B45B;color:#5C4A1E}
+  .memans{display:flex;gap:10px;align-items:flex-start;margin:0 2px 12px;animation:fadeup .25s ease}
+  @keyframes fadeup{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .memans .ab{background:var(--cream);border:2px solid var(--line);border-radius:4px 16px 16px 16px;padding:12px 14px;font-size:14px;line-height:1.7;flex:1}
+  .memans .ab .qq{color:#6B5730;font-size:13px;margin-top:4px}
+  .hl{background:var(--butter);border-radius:4px;padding:0 2px}
+  .dayh{font-size:13px;font-weight:700;color:var(--sub);margin:16px 2px 4px}
+  .deci{background:linear-gradient(145deg,#FFFDF4,#FFF6D9);border:2px solid #EBD9A6;border-radius:18px;padding:14px;margin-bottom:12px;position:relative;cursor:pointer}
+  .deci:active{transform:scale(.99)}
+  .deci .st{position:absolute;top:12px;right:12px;font-size:11px;background:#fff;border:1.5px solid #EBD9A6;color:#8A6D1F;border-radius:999px;padding:2px 8px}
+  .deci .st.ok{background:#E7EFD9;border-color:#A3B18A;color:#5F7443}
+  .deci .st.chg{background:#FFE9E9;border-color:#E4808A;color:#8A3B3B}
+  .deci .dt{font-size:12px;color:var(--sub);margin-bottom:6px}
+  .deci .dx{font-size:14.5px;line-height:1.6}
+  /* ============ 决定卡录入 ============ */
+  .dfield{border:2px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14.5px;font-family:inherit;outline:none;background:#fff;color:var(--ink)}
+  .dfield:focus{border-color:#E4C98C}
+  .chip.on{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+  /* ============ 我的页 ============ */
+  .mrow{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1.5px dashed var(--line);font-size:14px}
+  .mrow:last-child{border-bottom:none}
+  .sw{position:relative;width:44px;height:26px;flex-shrink:0;cursor:pointer;display:inline-block}
+  .sw input{opacity:0;width:0;height:0}
+  .sw i{position:absolute;inset:0;background:#E3D5C0;border-radius:99px;transition:.2s}
+  .sw i::after{content:'';position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .sw input:checked+i{background:var(--matcha)}
+  .sw input:checked+i::after{transform:translateX(18px)}
+  #nudge{width:100%;accent-color:#7A5C49}
+  /* ============ 全局按下手感（弹簧） ============ */
+  .btn,.chip,.fchip,.tone,.bell,.mrow-opt,.mbtn,.save2,.deci,.card[onclick],.entry,.mrow[onclick]{
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .btn:active,.chip:active,.fchip:active,.tone:active,.bell:active,.mrow-opt:active,.deci:active,.card[onclick]:active,.mrow[onclick]:active{
+    transform:scale(.93);
+  }
+  .mbtn:active,.save2:active{transform:scale(.96)}
+  .pin{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+  /* ============ 装扮屋 ============ */
+  .wsec{margin-bottom:14px}
+  .wsec .wt{font-size:13px;font-weight:700;color:var(--sub);margin-bottom:8px}
+  .wgrid{display:flex;gap:8px;flex-wrap:wrap}
+  .witem{
+    border:2px solid var(--line);background:#fff;border-radius:14px;padding:8px 10px;
+    font-family:inherit;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;
+    display:flex;align-items:center;gap:6px;transition:transform .18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .witem:active{transform:scale(.93)}
+  .witem.on{background:var(--cream);border-color:#D9B45B;color:var(--ink)}
+  /* ============ 头像 / 铃铛 / 弹窗 ============ */
+  .avatar{width:62px;height:62px;border-radius:50%;background:#fff;border:2.5px solid var(--line);overflow:hidden;display:flex;justify-content:center;flex-shrink:0}
+  .avatar svg{margin-top:7px}
+  .bell{position:relative;width:38px;height:38px;border-radius:50%;background:#fff;border:2px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-right:10px;flex-shrink:0}
+  .bell .dot{position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:#FF9AA2;border:2px solid #fff}
+  .modal{position:absolute;inset:0;z-index:66;background:rgba(74,55,40,.45);display:none;align-items:flex-end;justify-content:center}
+  .modal.show{display:flex}
+  .mbox{background:var(--paper);border-radius:26px 26px 0 0;border-top:2px solid var(--line);width:100%;padding:20px 20px 24px;max-height:78%;overflow-y:auto;animation:up .25s ease}
+  @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+  .mbtn{display:inline-block;border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:14.5px;border-radius:14px;padding:11px 16px;background:var(--butter);border:2px solid #D9B45B;color:#5C4A1E;width:100%}
+  .mbtn:active{transform:scale(.98)}
+  .mbtn.ghost{background:#fff;border-color:var(--line);color:var(--sub);font-weight:600}
+  .mbtn.danger{background:#FFD9D9;border-color:#E4808A;color:#8A3B3B}
+  .mrow-opt{display:flex;justify-content:space-between;align-items:center;padding:13px 4px;border-bottom:1.5px dashed var(--line);font-size:14.5px;cursor:pointer}
+  .mrow-opt:last-of-type{border-bottom:none}
+  .prow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .plab{font-size:14.5px;font-weight:600;width:38px;flex-shrink:0}
+  .pcolon{font-weight:700}
+  .tsel{flex:1;min-width:0;font-size:17px;font-weight:600;font-family:inherit;padding:10px 6px;border:2px solid var(--line);border-radius:12px;background:var(--cream);color:var(--ink);text-align:center;-webkit-appearance:none;appearance:none}
+  .save2{display:block;width:100%;background:var(--butter);border:2.5px solid #D9B45B;color:#5C4A1E;font-size:15px;font-weight:700;border-radius:14px;padding:11px;cursor:pointer;font-family:inherit;margin-top:10px}
+  .save2:active{transform:scale(.98)}
+  /* ============ 手机全屏适配 ============ */
+  @media (max-width:720px){
+    body{padding:0; gap:0}
+    .intro{display:none}
+    .phone{width:100vw; height:100dvh; border:none; border-radius:0; box-shadow:none}
+    .statusbar{height:34px; padding:0 20px 2px}
+    .tabbar{height:78px; padding-bottom:10px}
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Mochi · 交互原型</h1>
+  <p class="tag">软软地，替你记着。Memories that stick.</p>
+  <ul>
+    <li><b>捏一捏记录</b>：点底下的麻薯大按钮，看它被捏扁，然后随便写一条</li>
+    <li><b>贴心贴</b>：右上角小铃铛，或等推送自动弹出，看记忆怎么主动来找你</li>
+    <li><b>睡前一口</b>：切到"回信"页，切换四种人设，同一件事四种说法</li>
+    <li><b>记忆闪回</b>：首页"一年前的今天"</li>
+    <li><b>随便问</b>：回忆页用大白话问——"上个月在想什么""存了多少钱"，Mochi 用你的原文回答</li>
+  </ul>
+  <p class="ver">交互原型 v0.2 · 数据均为示例 · 形象为矢量稿，可随时整体替换</p>
+</div>
+
+<div class="phone">
+  <div class="statusbar"><span>21:37</span><span>●●●</span></div>
+  <div class="screen">
+
+    <!-- ===== 今天 ===== -->
+    <section id="view-today" class="view active">
+      <div class="greet">
+        <div class="hello">
+          <h2>9月3日 周四</h2>
+          <div class="muted">晚上好，今天记了 4 条，Mochi 都粘好了</div>
+        </div>
+        <div style="display:flex;align-items:center">
+          <button class="bell" onclick="showNotif()" title="贴心贴">
+            <svg viewBox="0 0 20 20" width="19" height="19"><path d="M10 3 a5 5 0 0 1 5 5 v3 l1.5 2.5 h-13 L5 11 V8 a5 5 0 0 1 5 -5 Z" fill="#FFE28A" stroke="#7A5C49" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.4 15.5 a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="#7A5C49" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="dot" id="notifDot"></span>
+          </button>
+          <div class="avatar" id="homeMochi"></div>
+        </div>
+      </div>
+
+      <div class="card flash">
+        <h3><svg class="ic" viewBox="0 0 20 20" width="18" height="18"><rect x="8.2" y="1.8" width="3.6" height="2" rx="1" fill="#7A5C49"/><circle cx="10" cy="11" r="7" fill="#FFF7EC" stroke="#7A5C49" stroke-width="1.7"/><path d="M10 6.8 V11 L13 12.8" fill="none" stroke="#7A5C49" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="11" r="1.1" fill="#7A5C49"/></svg>记忆闪回 · 一年前的今天</h3>
+        <div class="quote">"今天决定开始学日语，给自己报了名。有点紧张，但兴奋更多。"</div>
+      </div>
+
+      <div class="card">
+        <h3>今天的碎片</h3>
+        <div id="timeline"></div>
+      </div>
+    </section>
+
+    <!-- ===== 回信 ===== -->
+    <section id="view-letter" class="view">
+      <h2 style="margin:8px 2px 2px">睡前一口</h2>
+      <div class="muted" style="margin:0 2px 14px">每晚一条 · <span id="letterToneHint" style="text-decoration:underline dotted">当前人设：温柔</span>，去「我的」里换</div>
+
+      <div class="card letter-card">
+        <div class="ava" id="letterMochi"></div>
+        <div class="bubble" id="letterText"></div>
+      </div>
+
+      <div class="card goal">
+        <h3><svg class="ic" viewBox="0 0 20 20" width="18" height="18"><circle cx="10" cy="10" r="7.5" fill="#E7EFD9" stroke="#7A6550" stroke-width="1.6"/><circle cx="10" cy="10" r="4.5" fill="#FFF7EC" stroke="#7A6550" stroke-width="1.5"/><circle cx="10" cy="10" r="1.6" fill="#FFB3B3" stroke="#E4808A" stroke-width="1.2"/></svg>本周目标 · 存 500</h3>
+        <div class="bar"><i></i></div>
+        <div class="muted">已存 200 · 完成 40% · 还有 3 天</div>
+      </div>
+
+      <div class="card" style="background:#FFFDF4;border-style:dashed;cursor:pointer" onclick="openWeekly()">
+        <h3>一盒 · 周报</h3>
+        <div class="muted">每周日晚上，这周的碎片自动装成一盒，还配你自己声音的 3 分钟小播客。点开看本周这盒。</div>
+      </div>
+
+      <div class="card">
+        <h3>以前的一口</h3>
+        <div class="muted" style="margin-bottom:8px">周二 · "今天你三次都去了健身房，比上个月说的'想动起来'多走了很远。"</div>
+        <div class="muted">上周日 · "今天 Nook 里空空的……哦不，是 Mochi。有些日子就是用来休息的。"</div>
+      </div>
+    </section>
+
+    <!-- ===== 回忆 ===== -->
+    <section id="view-memory" class="view">
+      <h2 style="margin:8px 2px 0">回忆</h2>
+      <div class="muted" id="memCount" style="margin:0 2px 12px">8 条碎片，Mochi 一条都没丢</div>
+      <div class="search">
+        <svg viewBox="0 0 20 20" width="16" height="16"><circle cx="9" cy="9" r="5.5" fill="none" stroke="#A08B76" stroke-width="1.8"/><line x1="13.2" y1="13.2" x2="17" y2="17" stroke="#A08B76" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input id="memSearch" placeholder="随便问：上个月在想什么？存了多少钱？">
+      </div>
+      <div class="qrow">
+        <button class="qchip" data-q="上个月在想什么" onclick="ask('上个月在想什么')">上个月在想什么</button>
+        <button class="qchip" data-q="存了多少钱" onclick="ask('存了多少钱')">存了多少钱</button>
+        <button class="qchip" data-q="做过哪些决定" onclick="ask('做过哪些决定')">做过哪些决定</button>
+        <button class="qchip" data-q="关于跑步" onclick="ask('关于跑步')">关于跑步</button>
+      </div>
+      <div id="memAnswer"></div>
+      <div class="frow" id="frow">
+        <button class="fchip on" data-f="all" onclick="setFilter(this)">全部</button>
+        <button class="fchip" data-f="decide" onclick="setFilter(this)">决定卡</button>
+        <button class="fchip" data-f="money" onclick="setFilter(this)">记账</button>
+      </div>
+      <div class="card"><div id="memList"></div></div>
+    </section>
+
+    <!-- ===== 我的 ===== -->
+    <section id="view-mine" class="view">
+      <h2 style="margin:8px 2px 0">我的</h2>
+      <div class="muted" style="margin:0 2px 12px">Mochi 的家 · 一切由你说了算</div>
+
+      <div class="card" style="text-align:center;padding:24px 16px 18px">
+        <div id="mineMochi" onclick="mochiEgg()" style="cursor:pointer;display:inline-block"></div>
+        <div style="font-weight:700;margin-top:6px">Mochi</div>
+        <div class="muted">你的麻薯 · 记性很好，从不评判</div>
+      </div>
+
+      <div class="card">
+        <h3>人设 · 它怎么跟你说话</h3>
+        <div class="tones" style="margin:4px 0 10px">
+          <button class="tone on" data-tone="温柔" onclick="openPersona('温柔')">温柔</button>
+          <button class="tone" data-tone="幽默" onclick="openPersona('幽默')">幽默</button>
+          <button class="tone" data-tone="元气" onclick="openPersona('元气')">元气</button>
+          <button class="tone" data-tone="毒舌" onclick="openPersona('毒舌')">毒舌</button>
+        </div>
+        <div class="muted" id="personaHint">当前：温柔 —— "能剩下已经是胜利了，我陪你慢慢来。"</div>
+      </div>
+
+      <div class="card">
+        <h3>装扮屋</h3>
+        <div class="mrow" onclick="openWardrobe()" style="cursor:pointer"><span>给 Mochi 换装<br><span class="muted" style="font-size:12.5px" id="fitVal">素颜麻薯 · 去挑帽子、腮红</span></span><span class="muted">›</span></div>
+      </div>
+
+      <div class="card">
+        <h3>鞭策旋钮</h3>
+        <input type="range" min="0" max="4" value="1" id="nudge" oninput="nudgeLabel(this.value)" onchange="nudgeChange()" style="margin:8px 0 2px">
+        <div style="display:flex;justify-content:space-between"><span class="muted">老朋友</span><span class="muted">严厉教练</span></div>
+        <div class="muted" id="nudgeVal" style="margin-top:6px">当前：偏温柔 —— 多安慰，少催促</div>
+        <button class="save2" id="nudgeSave" style="display:none" onclick="saveNudge()">保存这个力度</button>
+      </div>
+
+      <div class="card">
+        <h3>贴心贴</h3>
+        <div class="muted" style="line-height:1.7;margin-bottom:10px">贴心贴 = Mochi 在关键时刻，把你过去记的事递到你面前。比如明天要签合同，它早上会提醒你："8月3日你记过，中介没给书面报价。"下面是它什么时候来递话：</div>
+        <div class="mrow"><span>看日程时<br><span class="muted" style="font-size:12.5px">明天有安排，前一天提醒你相关的旧记录</span></span><label class="sw"><input type="checkbox" checked onchange="toast('已开启 · 看日程时递话')"><i></i></label></div>
+        <div class="mrow"><span>见人时<br><span class="muted" style="font-size:12.5px">要见谁/打电话给谁，提醒你答应过的事</span></span><label class="sw"><input type="checkbox" checked onchange="toast('已开启 · 真机上连接你的通讯录后生效')"><i></i></label></div>
+        <div class="mrow"><span>到地方时<br><span class="muted" style="font-size:12.5px">再到某地，提醒你上次在这里记的事</span></span><label class="sw"><input type="checkbox" checked onchange="toast('已开启 · 真机上使用定位，只在本机处理')"><i></i></label></div>
+        <div class="mrow" onclick="openDnd()" style="cursor:pointer"><span>免打扰时段</span><span class="muted" id="dndVal">22:30 – 8:30 ›</span></div>
+        <button class="btn small" style="margin-top:12px" onclick="showNotif()">预览一条贴心贴</button>
+      </div>
+
+      <div class="card">
+        <h3>数据与隐私</h3>
+        <div class="mrow"><span>存储方式</span><span class="muted">端侧优先，默认不上云</span></div>
+        <div class="mrow" onclick="doExport()" style="cursor:pointer"><span>导出我的记忆</span><span class="muted">›</span></div>
+        <div class="mrow" onclick="askDelete()" style="cursor:pointer"><span>彻底删除</span><span class="muted">›</span></div>
+      </div>
+
+      <div class="card">
+        <h3>更多</h3>
+        <div class="mrow" onclick="openWeekly()" style="cursor:pointer"><span>一盒 · 本周小报</span><span class="muted">这周的碎片已装盒 ›</span></div>
+        <div class="mrow" onclick="openCapsule()" style="cursor:pointer"><span id="capRow">时间胶囊</span><span class="muted" id="capVal">写给一年后的自己 ›</span></div>
+      </div>
+    </section>
+
+    <!-- ===== 捏一捏弹层 ===== -->
+    <div class="overlay" id="overlay" onclick="closeSheet()">
+      <div class="pinmo" id="pinmo"></div>
+    </div>
+    <div class="sheet" id="sheet">
+      <div class="grab"></div>
+      <textarea id="noteInput" placeholder="随便说点什么，Mochi 都接着…"></textarea>
+      <div id="decideFields" style="display:none;flex-direction:column;gap:8px;flex:1">
+        <input class="dfield" id="dWhat" placeholder="决定了什么？">
+        <input class="dfield" id="dWhy" placeholder="为什么？（当时的理由）">
+        <input class="dfield" id="dConf" placeholder="当时的把握（比如：七成）">
+      </div>
+      <div class="quick">
+        <span class="chip" onclick="prefillPhoto()"><svg class="ic" viewBox="0 0 20 20" width="15" height="15"><rect x="2.5" y="5.5" width="15" height="10.5" rx="2.5" fill="#FFF7EC" stroke="#7A5C49" stroke-width="1.6"/><circle cx="10" cy="10.7" r="3" fill="#FFE28A" stroke="#7A5C49" stroke-width="1.5"/><circle cx="14.6" cy="7.9" r="0.9" fill="#7A5C49"/></svg>拍一张</span><span class="chip" onclick="prefillMic()"><svg class="ic" viewBox="0 0 20 20" width="15" height="15"><rect x="7.5" y="2.5" width="5" height="9" rx="2.5" fill="#FFB3B3" stroke="#7A5C49" stroke-width="1.6"/><path d="M5.5 10.5 a4.5 4.5 0 0 0 9 0" fill="none" stroke="#7A5C49" stroke-width="1.6" stroke-linecap="round"/><line x1="10" y1="15" x2="10" y2="17.5" stroke="#7A5C49" stroke-width="1.6" stroke-linecap="round"/></svg>说一句</span><span class="chip" onclick="prefillMoney()"><svg class="ic" viewBox="0 0 20 20" width="15" height="15"><circle cx="10" cy="10" r="7" fill="#FFE28A" stroke="#C9A24B" stroke-width="1.7"/><path d="M7.6 6.8 L10 9.8 L12.4 6.8 M10 9.8 V13.2 M8.3 11 H11.7" fill="none" stroke="#8A6D1F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>记个账</span><span class="chip" id="chipDecide" onclick="toggleDecide()"><svg class="ic" viewBox="0 0 20 20" width="15" height="15"><rect x="3" y="4" width="14" height="12" rx="2.5" fill="#E7EFD9" stroke="#7A6550" stroke-width="1.6"/><path d="M6.5 12.5 C8 12.5 8 7.5 12.2 7.5" fill="none" stroke="#5F7443" stroke-width="1.6" stroke-linecap="round"/><path d="M10.4 6 L12.4 7.5 L10.4 9" fill="none" stroke="#5F7443" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>决定卡</span>
+      </div>
+      <button class="btn save" onclick="saveNote()">粘好啦，收进今天</button>
+    </div>
+
+    <!-- ===== 贴心贴推送 ===== -->
+    <div class="notif" id="notif" onclick="hideNotif()">
+      <div id="notifMochi" style="flex-shrink:0"></div>
+      <div>
+        <div class="nt"><b>MOCHI · 贴心贴</b> · 现在</div>
+        <div class="nb">明天 10:00 和中介签合同。你 8 月 3 日记过："中介说采光好，但没给书面报价"——<b>记得要书面报价</b>。</div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <div class="modal" id="modal" onclick="if (event.target === this) closeModal()"><div class="mbox" id="modalBox"></div></div>
+  </div>
+
+  <!-- ===== 底栏 ===== -->
+  <div class="tabbar">
+    <button class="tab active" data-view="view-today" onclick="switchTab(this)">今天</button>
+    <button class="tab" data-view="view-memory" onclick="switchTab(this)">回忆</button>
+    <button class="pin" onclick="openSheet()"><div id="pinFace"></div><span>捏一捏</span></button>
+    <button class="tab" data-view="view-letter" onclick="switchTab(this)">回信</button>
+    <button class="tab" data-view="view-mine" onclick="switchTab(this)">我的</button>
+  </div>
+</div>
+
+<script>
+/* ================= Mochi 形象绘制（矢量，可整体替换） ================= */
+const BODY = 'M 0 -138 C 83 -138 150 -78 150 5 C 150 88 85 128 0 128 C -85 128 -150 88 -150 5 C -150 -78 -83 -138 0 -138 Z';
+let outfit = { hat: 'none', blush: 'pink' };   // 装扮：帽子 / 腮红
+function mochiSVG(expr = 'happy', w = 110) {
+  let vb = '-175 -190 350 350';
+  if (expr === 'hug') vb = '-200 -205 410 410';       // 抱抱的手要伸出去，画布加宽
+  if (expr === 'note') vb = '-175 -195 385 385';      // 递纸条同理
+  if (expr === 'wave') vb = '-175 -205 405 405';      // 挥手 + 爱心同理
+  const feet = '<rect x="-62" y="112" width="30" height="24" rx="12" fill="#3A2B20"/>' +
+               '<rect x="32" y="112" width="30" height="24" rx="12" fill="#3A2B20"/>';
+  const arms = '<ellipse cx="-138" cy="30" rx="17" ry="10" transform="rotate(12 -138 30)" fill="#3A2B20"/>' +
+               '<ellipse cx="138" cy="30" rx="17" ry="10" transform="rotate(-12 138 30)" fill="#3A2B20"/>';
+  const blushBits = {
+    pink: '<ellipse cx="-80" cy="14" rx="16" ry="9" fill="#FFB3B3" opacity=".7"/><ellipse cx="80" cy="14" rx="16" ry="9" fill="#FFB3B3" opacity=".7"/>',
+    peach: '<ellipse cx="-80" cy="14" rx="16" ry="9" fill="#FFC9A3" opacity=".85"/><ellipse cx="80" cy="14" rx="16" ry="9" fill="#FFC9A3" opacity=".85"/>',
+    heart: '<path d="M -80 8 c -6 -9 -20 -4 -20 5 c 0 8 11 13 20 20 c 9 -7 20 -12 20 -20 c 0 -9 -14 -14 -20 -5 z" fill="#FF9AA2" opacity=".8"/><path d="M 80 8 c -6 -9 -20 -4 -20 5 c 0 8 11 13 20 20 c 9 -7 20 -12 20 -20 c 0 -9 -14 -14 -20 -5 z" fill="#FF9AA2" opacity=".8"/>',
+    none: ''
+  };
+  const hatBits = {
+    none: '',
+    beret: '<g transform="translate(18,-152) rotate(-8)"><ellipse cx="0" cy="0" rx="58" ry="24" fill="#A3B18A" stroke="#7A5C49" stroke-width="5"/><circle cx="10" cy="-17" r="7" fill="#7A5C49"/></g>',
+    bow: '<g transform="translate(58,-148) rotate(12)"><path d="M0 0 L-30 -15 L-26 13 Z" fill="#FFB3B3" stroke="#E4808A" stroke-width="4" stroke-linejoin="round"/><path d="M0 0 L30 -15 L26 13 Z" fill="#FFB3B3" stroke="#E4808A" stroke-width="4" stroke-linejoin="round"/><circle cx="0" cy="0" r="8" fill="#FF9AA2" stroke="#E4808A" stroke-width="4"/></g>',
+    crown: '<g transform="translate(0,-158)"><path d="M-34 10 L-34 -14 L-17 -1 L0 -22 L17 -1 L34 -14 L34 10 Z" fill="#FFE28A" stroke="#D9B45B" stroke-width="4" stroke-linejoin="round"/></g>',
+    beanie: '<g transform="translate(0,-138)"><path d="M-62 8 Q0 -50 62 8 L62 22 Q0 4 -62 22 Z" fill="#E8D5B8" stroke="#7A5C49" stroke-width="5" stroke-linejoin="round"/><circle cx="0" cy="-38" r="12" fill="#FFF7EC" stroke="#7A5C49" stroke-width="5"/></g>'
+  };
+  const base = feet + '<path d="' + BODY + '" fill="#FFF7EC" stroke="#7A5C49" stroke-width="7"/>' + arms;
+  const eyes = '<circle cx="-48" cy="-18" r="11" fill="#3A2B20"/><circle cx="48" cy="-18" r="11" fill="#3A2B20"/>';
+  const blush = blushBits[outfit.blush];
+  const smile = '<path d="M -14 22 Q 0 34 14 22" fill="none" stroke="#3A2B20" stroke-width="5.5" stroke-linecap="round"/>';
+  const hat = (expr === 'pinch') ? '' : hatBits[outfit.hat];   // 被捏扁时不戴帽，免得帽子悬浮
+  let inner = '';
+  if (expr === 'happy') inner = base + eyes + blush + smile + hat;
+  else if (expr === 'wave') inner =   // 我的页专属造型：歪头挥手
+    '<g transform="rotate(-5)">' + feet + '<path d="' + BODY + '" fill="#FFF7EC" stroke="#7A5C49" stroke-width="7"/></g>' +
+    '<ellipse cx="-132" cy="44" rx="17" ry="10" transform="rotate(28 -132 44)" fill="#3A2B20"/>' +      // 左手撑地
+    '<ellipse cx="126" cy="-64" rx="19" ry="11" transform="rotate(115 126 -64)" fill="#3A2B20"/>' +     // 右手举起来挥
+    '<path d="M 118 -92 q 14 -12 30 -6 M 122 -74 q 16 -10 32 -2" fill="none" stroke="#C9B8A0" stroke-width="5" stroke-linecap="round"/>' +  // 挥手的动势线
+    '<circle cx="-46" cy="-16" r="11" fill="#3A2B20"/><circle cx="-50" cy="-20" r="3.5" fill="#FFF"/>' + // 左眼圆睁
+    '<path d="M 34 -16 Q 48 -28 62 -16" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' +  // 右眼笑成月牙
+    '<ellipse cx="-84" cy="18" rx="16" ry="9" fill="#FFB3B3" opacity=".7"/><ellipse cx="80" cy="18" rx="16" ry="9" fill="#FFB3B3" opacity=".7"/>' +
+    '<path d="M -12 24 Q 0 40 16 22 Q 2 30 -12 24 Z" fill="#3A2B20"/>' +   // 开心张小嘴
+    '<path d="M 158 -118 c -5 -8 -17 -3 -17 4 c 0 6 8 10 17 16 c 9 -6 17 -10 17 -16 c 0 -7 -12 -12 -17 -4 z" fill="#FF9AA2" stroke="#E4808A" stroke-width="2.5"/>';  // 手边飘颗小爱心
+  else if (expr === 'plain') inner = base + eyes + blush + smile + hat;
+  else if (expr === 'pinch') inner =
+    '<g transform="scale(1.12,0.78)">' + feet + '<path d="' + BODY + '" fill="#FFF7EC" stroke="#7A5C49" stroke-width="8"/></g>' +
+    '<ellipse cx="-160" cy="-16" rx="17" ry="10" transform="rotate(-20 -160 -16)" fill="#3A2B20"/>' +
+    '<ellipse cx="160" cy="-16" rx="17" ry="10" transform="rotate(20 160 -16)" fill="#3A2B20"/>' +
+    '<path d="M -156 -50 q -16 32 -6 62" fill="none" stroke="#C9B8A0" stroke-width="6" stroke-linecap="round"/>' +
+    '<path d="M 156 -50 q 16 32 6 62" fill="none" stroke="#C9B8A0" stroke-width="6" stroke-linecap="round"/>' +
+    '<path d="M -60 -20 L -44 -10 L -60 0" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<path d="M 60 -20 L 44 -10 L 60 0" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<circle cx="0" cy="26" r="9" fill="none" stroke="#3A2B20" stroke-width="6.5"/>';
+  else if (expr === 'sleep') inner =
+    base +
+    '<path d="M -60 -14 Q -48 -26 -36 -14" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' +
+    '<path d="M 36 -14 Q 48 -26 60 -14" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' + blush +
+    '<path d="M -8 26 Q 0 32 8 26" fill="none" stroke="#3A2B20" stroke-width="5.5" stroke-linecap="round"/>' +
+    '<text x="92" y="-118" font-size="38" font-weight="bold" fill="#A08B76" transform="rotate(12 92 -118)">z</text>' +
+    '<text x="132" y="-156" font-size="27" font-weight="bold" fill="#A08B76" transform="rotate(18 132 -156)">z</text>';
+  else if (expr === 'note') inner =
+    feet + '<path d="' + BODY + '" fill="#FFF7EC" stroke="#7A5C49" stroke-width="7"/>' +
+    '<ellipse cx="-138" cy="30" rx="17" ry="10" transform="rotate(12 -138 30)" fill="#3A2B20"/>' +
+    '<ellipse cx="128" cy="-28" rx="17" ry="10" transform="rotate(55 128 -28)" fill="#3A2B20"/>' +
+    '<g transform="translate(152,-62) rotate(10)"><rect x="-34" y="-30" width="68" height="60" rx="7" fill="#FFE28A" stroke="#D9B45B" stroke-width="4"/><line x1="-18" y1="-8" x2="18" y2="-8" stroke="#C9A24B" stroke-width="4" stroke-linecap="round"/><line x1="-18" y1="8" x2="12" y2="8" stroke="#C9A24B" stroke-width="4" stroke-linecap="round"/></g>' +
+    eyes + blush + smile;
+  else if (expr === 'hug') inner =
+    feet + '<path d="' + BODY + '" fill="#FFF7EC" stroke="#7A5C49" stroke-width="7"/>' +
+    '<ellipse cx="-136" cy="-30" rx="18" ry="10" transform="rotate(-125 -136 -30)" fill="#3A2B20"/>' +
+    '<ellipse cx="136" cy="-30" rx="18" ry="10" transform="rotate(125 136 -30)" fill="#3A2B20"/>' +
+    '<path d="M -60 -12 Q -48 -24 -36 -12" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' +
+    '<path d="M 36 -12 Q 48 -24 60 -12" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' + blush +
+    '<path d="M -18 16 Q 0 42 18 16 Q 0 26 -18 16 Z" fill="#3A2B20"/>' +
+    '<path d="M 0 -168 c -9 -15 -33 -8 -33 7 c 0 13 19 22 33 33 c 14 -11 33 -20 33 -33 c 0 -15 -24 -22 -33 -7 z" fill="#FF9AA2" stroke="#E4808A" stroke-width="3"/>';
+  else if (expr === 'smug') inner =
+    base +
+    '<path d="M -60 -18 L -38 -14" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' +
+    '<path d="M 38 -14 L 60 -18" fill="none" stroke="#3A2B20" stroke-width="6.5" stroke-linecap="round"/>' + blush +
+    '<path d="M -14 24 L 16 20" fill="none" stroke="#3A2B20" stroke-width="5.5" stroke-linecap="round"/>';
+  return '<svg viewBox="' + vb + '" width="' + w + '" height="' + w + '">' + inner + '</svg>';
+}
+
+/* ================= 数据（示例） ================= */
+let entries = [
+  { time: '08:12', text: '早饭做了鸡蛋饼，比想象中成功。' },
+  { time: '13:40', text: '决定报十月的烘焙课——想了三个月，终于动手了。', badge: '决定卡', cls: 'decide' },
+  { time: '16:05', text: '跑了 3 公里，膝盖没事，放心。' },
+  { time: '21:00', text: '存了 200。', badge: '记账' },
+];
+const letters = {
+  '温柔': { face: 'hug', text: '这周想存 500，实际存下了 200。不过刚交完房租的月份，能剩下已经是胜利了。要不要把下周目标调成 300？我陪你慢慢来。' },
+  '幽默': { face: 'pinch', text: '钱包这周轻了 300 克……啊不，300 块。500 的目标完成了 40%，按麻薯的弹性，捏一捏下周就弹回来了。' },
+  '元气': { face: 'happy', text: '200 也是存！比什么都没存的自己多了整整 200！下周改成 300，一步一步来，我看好你！' },
+  '毒舌': { face: 'smug', text: '200。离 500 差得远。……哼，考虑到你刚交完房租，这次不骂你。下周 300，敢不敢？' },
+};
+
+/* ================= 渲染 ================= */
+function entryRow(e, grams) {
+  const txt = grams ? hiText(e.text, grams) : e.text;
+  return '<div class="entry"><div class="time">' + e.time + '</div><div class="txt">' +
+    (e.badge ? '<span class="badge ' + (e.cls || '') + '">' + e.badge + '</span>' : '') + txt + '</div></div>';
+}
+function renderTimeline() {
+  document.getElementById('timeline').innerHTML = entries
+    .filter(e => !e.date || e.date === '9月3日 周四')
+    .map(e => entryRow(e)).join('');
+}
+const personaHints = {
+  '温柔': '当前：温柔 —— "能剩下已经是胜利了，我陪你慢慢来。"',
+  '幽默': '当前：幽默 —— "按麻薯的弹性，捏一捏下周就弹回来了。"',
+  '元气': '当前：元气 —— "比什么都没存的自己多了整整 200！"',
+  '毒舌': '当前：毒舌 —— "哼，这次不骂你。下周 300，敢不敢？"',
+};
+let curTone = '温柔';
+function setTone(t) {
+  curTone = t;
+  const L = letters[t];
+  document.getElementById('letterText').textContent = L.text;
+  document.getElementById('letterMochi').innerHTML = mochiSVG(L.face, 92);
+  document.getElementById('personaHint').textContent = personaHints[t];
+  document.getElementById('letterToneHint').textContent = '当前人设：' + t;
+  document.querySelectorAll('.tone').forEach(x => x.classList.toggle('on', x.dataset.tone === t));
+}
+let switchingTab = false;
+function switchTab(btn) {
+  if (btn.classList.contains('active') || switchingTab) return;   // 动画期间不叠帧
+  const cur = document.querySelector('.view.active');
+  const next = document.getElementById(btn.dataset.view);
+  if (cur === next) return;
+  switchingTab = true;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+  if (cur) {
+    cur.classList.add('leaving');
+    setTimeout(() => {
+      cur.classList.remove('active', 'leaving');
+      next.classList.add('active');
+      switchingTab = false;
+    }, 150);
+  } else {
+    next.classList.add('active');
+    switchingTab = false;
+  }
+}
+function openSheet() {
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(() => document.getElementById('sheet').classList.add('show'), 250);
+}
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+  if (decideMode) toggleDecide();
+}
+let decideMode = false;
+function toggleDecide() {
+  decideMode = !decideMode;
+  document.getElementById('chipDecide').classList.toggle('on', decideMode);
+  document.getElementById('noteInput').style.display = decideMode ? 'none' : 'block';
+  document.getElementById('decideFields').style.display = decideMode ? 'flex' : 'none';
+  if (decideMode) document.getElementById('dWhat').focus();
+}
+function saveNote() {
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  let text, badge, cls;
+  if (decideMode) {
+    const w = document.getElementById('dWhat').value.trim();
+    const why = document.getElementById('dWhy').value.trim();
+    const cf = document.getElementById('dConf').value.trim() || '五五开';
+    if (!w) { toast('至少写下你决定了什么'); return; }
+    text = '决定了：' + w + (why ? ' · 因为：' + why : '') + ' · 把握：' + cf;
+    badge = '决定卡'; cls = 'decide';
+    document.getElementById('dWhat').value = '';
+    document.getElementById('dWhy').value = '';
+    document.getElementById('dConf').value = '';
+  } else {
+    const input = document.getElementById('noteInput');
+    text = input.value.trim() || '（这条什么都没写，也粘好了）';
+    input.value = '';
+  }
+  entries.push({ date: '9月3日 周四', time: time, text: text, badge: badge, cls: cls });
+  renderTimeline();
+  renderMemory();
+  closeSheet();
+  toast(decideMode ? '决定卡粘好啦，以后它会来看你' : '记好啦，粘在 Mochi 身上');
+  document.getElementById('homeMochi').innerHTML = mochiSVG('hug', 76);
+  setTimeout(() => document.getElementById('homeMochi').innerHTML = mochiSVG('plain', 72), 2600);
+}
+function showNotif() {
+  document.getElementById('notif').classList.add('show');
+  const dot = document.getElementById('notifDot');
+  if (dot) dot.style.display = 'none';
+  setTimeout(hideNotif, 5000);
+}
+function hideNotif() { document.getElementById('notif').classList.remove('show'); }
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ================= 回忆页 ================= */
+let memFilter = 'all';
+function setFilter(btn) {
+  document.querySelectorAll('.fchip').forEach(x => x.classList.remove('on'));
+  btn.classList.add('on');
+  memFilter = btn.dataset.f;
+  renderMemory();
+}
+
+/* ===== 随便问 · 本地语义搜索（原型内模拟；正式版换成 AI，铁律不变：只引用原文） ===== */
+/* 原型的"今天" = 2026-09-03，与首页日期、时间胶囊一致 */
+function parseDay(s) {
+  const m = String(s || '').match(/(\d{1,2})月(\d{1,2})日/);
+  return m ? new Date(2026, m[1] - 1, m[2]) : new Date(2026, 8, 3);
+}
+const CN_MO = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10, '十一': 11, '十二': 12 };
+function mkD(mo, d) { return new Date(2026, mo - 1, d); }
+function timeRange(q) {
+  let m;
+  if (m = q.match(/(\d{1,2})月(\d{1,2})[日号]/)) { const mo = +m[1]; return { label: m[1] + '月' + m[2] + '日', from: mkD(mo, +m[2]), to: mkD(mo, +m[2]) }; }
+  if (/今天/.test(q)) return { label: '今天', from: mkD(9, 3), to: mkD(9, 3) };
+  if (/昨天/.test(q)) return { label: '昨天', from: mkD(9, 2), to: mkD(9, 2) };
+  if (/前天/.test(q)) return { label: '前天', from: mkD(9, 1), to: mkD(9, 1) };
+  if (/这周|本周/.test(q)) return { label: '这周', from: mkD(8, 31), to: mkD(9, 3) };
+  if (/上周|上星期/.test(q)) return { label: '上周', from: mkD(8, 24), to: mkD(8, 30) };
+  if (/上个月|上月/.test(q)) return { label: '上个月（8月）', from: mkD(8, 1), to: mkD(8, 31) };
+  if (/这个月|本月/.test(q)) return { label: '这个月（9月）', from: mkD(9, 1), to: mkD(9, 30) };
+  if (m = q.match(/最近(\d{1,3})天/)) { const n = +m[1]; return { label: '最近' + n + '天', from: mkD(9, 4 - n), to: mkD(9, 3) }; }
+  if (/最近|前阵子/.test(q)) return { label: '最近两周', from: mkD(8, 21), to: mkD(9, 3) };
+  if (m = q.match(/(\d{1,2})月/)) { const mo = +m[1]; return { label: m[1] + '月', from: mkD(mo, 1), to: mkD(mo + 1, 0) }; }
+  if (m = q.match(/([一二三四五六七八九十]{1,2})月/)) { const mo = CN_MO[m[1]]; return { label: m[1] + '月', from: mkD(mo, 1), to: mkD(mo + 1, 0) }; }
+  return null;
+}
+const SYN = [
+  { name: '钱', words: ['钱', '存', '花', '账', '预算', '房租', '块', '元'] },
+  { name: '运动', words: ['跑', '运动', '健身', '公里', '膝', '散步'] },
+  { name: '吃', words: ['吃', '饭', '鸡蛋饼', '便利', '早', '午', '晚'] },
+  { name: '读书', words: ['书', '读', '划线'] },
+  { name: '课', words: ['课', '学', '烘焙', '日语', '班'] },
+  { name: '房子', words: ['房', '中介', '合同', '报价', '采光', '租', '签'] },
+  { name: '心情', words: ['心情', '紧张', '兴奋', '放心', '忙', '纠结', '累'] },
+];
+function hitTopic(e, t) { return t.words.some(w => e.text.indexOf(w) > -1); }
+function gramList(q) {
+  let c = q.replace(/[？?。，,！!、\s]/g, '');
+  ['什么', '怎么', '哪些', '多少', '关于', '记录', '没有', '随便', '一下', '找到', '告诉', '时候', '想过'].forEach(w => { c = c.split(w).join(''); });
+  const stop = '我你了的在是吗呢啊都把被这那和与及给很又也还就过着';
+  const out = [];
+  for (const ch of c) if (stop.indexOf(ch) < 0 && /[\u4e00-\u9fa5A-Za-z0-9]/.test(ch)) out.push(ch);
+  for (let i = 0; i < c.length - 1; i++) {
+    const b = c.slice(i, i + 2);
+    if (![...b].some(ch => stop.indexOf(ch) > -1)) out.push(b);
+  }
+  return out;
+}
+function scoreEntry(e, grams) {
+  let s = 0;
+  grams.forEach(g => { if (e.text.indexOf(g) > -1) s += g.length > 1 ? 3 : 1; });
+  return s;
+}
+function moneySum(list) {
+  let saved = 0, spent = 0;
+  list.forEach(e => {
+    const t = e.text; let m;
+    if (m = t.match(/存了?\s*(\d+(?:\.\d+)?)/)) saved += parseFloat(m[1]);
+    else if (m = t.match(/花了?\s*(\d+(?:\.\d+)?)/)) spent += parseFloat(m[1]);
+    else if (m = t.match(/(\d+(?:\.\d+)?)/)) spent += parseFloat(m[1]);
+  });
+  return { saved: saved, spent: spent };
+}
+function trunc(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
+function hiText(t, grams) {
+  grams.filter(g => g.length > 1).forEach(g => { if (t.indexOf(g) > -1) t = t.split(g).join('<span class="hl">' + g + '</span>'); });
+  return t;
+}
+function runQuery(q) {
+  const range = timeRange(q);
+  const decide = /决定|纠结|选择/.test(q);
+  const money = /钱|存了|花了|预算|记账|账/.test(q);
+  const topics = SYN.filter(s => s.words.some(w => q.indexOf(w) > -1)).map(s => s.name);
+  let list = entries.slice(), grams = null;
+  if (range) list = list.filter(e => { const d = parseDay(e.date); return d >= range.from && d <= range.to; });
+  if (decide) list = list.filter(e => e.badge === '决定卡');
+  else if (money) list = list.filter(e => e.badge === '记账' || /(存|花)了?\s*\d/.test(e.text));
+  if (topics.length && !decide && !money) list = list.filter(e => topics.some(t => hitTopic(e, SYN.find(s => s.name === t))));
+  if (!range && !decide && !money && !topics.length) {          // 什么都没识别到 → 关键词打分模式
+    grams = gramList(q);
+    const scored = entries.map(e => ({ e: e, s: scoreEntry(e, grams) })).filter(x => x.s >= 3).sort((a, b) => b.s - a.s);
+    list = scored.map(x => x.e);
+    if (!list.length) { grams = null; list = entries.filter(e => e.text.indexOf(q) > -1); }   // 兜底：整句包含
+  }
+  return { list: list, grams: grams, answer: buildAnswer(q, range, decide, money, topics, list) };
+}function buildAnswer(q, range, decide, money, topics, list) {
+  const qt = e => '· ' + (e.date || '9月3日 周四').replace(/ 周./, '') + '：「' + trunc(e.text, 24) + '」';
+  const qq = arr => arr.map(x => '<div class="qq">' + qt(x) + '</div>').join('');
+  if (!list.length) return { ans: '<b>这里没翻到。</b>换个说法试试——「上个月在想什么」「存了多少钱」都可以，下面的快捷问法也能直接点。', face: pickFace('lost') };
+  if (money) {
+    const ms = moneySum(list);
+    const f = ms.saved >= ms.spent ? 'smug' : 'hug';
+    return { ans: '<b>' + (range ? range.label : '记过的账') + '：存了 ' + ms.saved + '，花了 ' + ms.spent + '。</b>原文都在下面，一个字没动。', face: pickFace('money', f) };
+  }
+  if (decide) return { ans: '<b>' + (range ? range.label : '到现在') + '你立了 ' + list.length + ' 张决定卡。</b>' + qq(list.slice(0, 2)) + (list.length > 2 ? '<div class="qq">· 其余在下面</div>' : ''), face: pickFace('decide') };
+  if (topics.length) return { ans: '<b>「' + topics.join('」「') + '」相关，找到 ' + list.length + ' 条。</b>' + qq([list[0]]) + (list.length > 1 ? '<div class="qq">· 其余在下面</div>' : ''), face: pickFace('topic') };
+  if (range) return { ans: '<b>' + range.label + '你留下 ' + list.length + ' 条。</b>' + qq([list[list.length - 1]]) + (list.length > 1 ? '<div class="qq">· 全部在下面</div>' : ''), face: pickFace('time') };
+  return { ans: '<b>按「' + trunc(q, 14) + '」找到 ' + list.length + ' 条</b>，都帮你挑出来了。', face: pickFace('topic') };
+}
+/* 回答区表情：按答案类型挑一个池子再随机，同一个不连着出现 */
+let lastFace = '';
+const FACE_POOLS = {
+  time:   ['note', 'happy', 'sleep', 'plain'],
+  topic:  ['happy', 'note', 'hug', 'smug'],
+  money:  ['smug', 'happy', 'pinch', 'note'],
+  decide: ['note', 'smug', 'happy'],
+  lost:   ['sleep', 'hug', 'plain'],
+};
+function pickFace(type, preferred) {
+  const pool = FACE_POOLS[type] || ['happy'];
+  let candidates = pool.filter(f => f !== lastFace);
+  if (preferred && preferred !== lastFace) candidates = [preferred, ...candidates.filter(f => f !== preferred)];
+  const f = candidates[Math.floor(Math.random() * candidates.length)];
+  lastFace = f;
+  return f;
+}
+function ask(q) {
+  document.getElementById('memSearch').value = q;
+  renderMemory();
+}
+
+function renderMemory() {
+  const q = document.getElementById('memSearch').value.trim();
+  const hasQ = q.length > 0;
+  let list, grams = null, ans = '';
+  if (hasQ) {
+    const r = runQuery(q);
+    list = r.list; grams = r.grams;
+    if (r.answer && r.answer.ans) ans = '<div class="memans"><div style="flex-shrink:0">' + mochiSVG(r.answer.face, 44) + '</div><div class="ab">' + r.answer.ans + '</div></div>';
+  } else {
+    list = entries.filter(e =>
+      memFilter === 'all' ||
+      (memFilter === 'decide' && e.badge === '决定卡') ||
+      (memFilter === 'money' && e.badge === '记账'));
+  }
+  document.getElementById('frow').classList.toggle('dim', hasQ);   // 提问时以问答为准，筛选按钮让路
+  document.querySelectorAll('.qchip').forEach(c => c.classList.toggle('on', hasQ && c.dataset.q === q));
+  document.getElementById('memAnswer').innerHTML = ans;
+  document.getElementById('memCount').textContent = hasQ
+    ? '找到 ' + list.length + ' / ' + entries.length + ' 条'
+    : entries.length + ' 条碎片，Mochi 一条都没丢';
+  let html = '';
+  if (memFilter === 'decide' && !hasQ) {
+    html = list.map(e => {
+      const stMap = { ok: ['兑现了', 'ok'], chg: ['后来变了', 'chg'], wait: ['还在等', ''] };
+      const st = e.review ? stMap[e.review] : ['待回访', ''];
+      return '<div class="deci" onclick="openDecide(' + entries.indexOf(e) + ')"><span class="st ' + st[1] + '">' + st[0] + '</span><div class="dt">' + (e.date || '9月3日 周四') + ' · ' + e.time + '</div><div class="dx">' + e.text + '</div>' +
+        (e.reviewNote ? '<div class="ref" style="margin:10px 0 0">回访：' + e.reviewNote + '</div>' : '') + '</div>';
+    }).join('') || '<div class="muted" style="padding:8px 2px">还没有决定卡。哪天你做了决定，来这里立个字据。</div>';
+  } else {
+    let lastDate = '';
+    list.forEach(e => {
+      const d = e.date || '9月3日 周四';
+      if (d !== lastDate) { html += '<div class="dayh">' + d + '</div>'; lastDate = d; }
+      html += entryRow(e, grams);
+    });
+    html = html || '<div class="muted" style="padding:8px 2px">' + (hasQ ? '这里没有匹配的，换个问法试试。' : '没有找到。换个问法试试，Mochi 记性很好的。') + '</div>';
+  }
+  document.getElementById('memList').innerHTML = html;
+}
+
+/* ================= 我的页 ================= */
+const eggLines = ['嘿嘿，被你捏到了', '我在呢，事事有着落', '别戳啦，再戳就要记一条了', '今天的事，都粘在我身上了'];
+let eggIdx = 0;
+function mochiEgg() {
+  document.getElementById('mineMochi').innerHTML = mochiSVG('hug', 110);
+  toast(eggLines[eggIdx++ % eggLines.length]);
+  setTimeout(() => document.getElementById('mineMochi').innerHTML = mochiSVG('wave', 110), 2600);
+}
+const nudgeTexts = [
+  '当前：老朋友 —— 只安慰，不催促',
+  '当前：偏温柔 —— 多安慰，少催促',
+  '当前：平衡 —— 有夸有劝',
+  '当前：偏严厉 —— 敢说真话',
+  '当前：教练 —— 狠话也带台阶，量力选择',
+];
+function nudgeLabel(v) {
+  document.getElementById('nudgeVal').textContent = nudgeTexts[v];
+}
+function nudgeChange() {
+  document.getElementById('nudgeSave').style.display = 'block';
+}
+function saveNudge() {
+  document.getElementById('nudgeSave').style.display = 'none';
+  toast('已保存 · Mochi 会按这个力度说话');
+}
+
+/* ================= 弹窗：人设 / 免打扰 / 一盒 / 胶囊 / 导出 / 删除 ================= */
+function openModal(html) {
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+function openPersona(t) {
+  const L = letters[t];
+  openModal(
+    '<div style="text-align:center">' +
+    '<div style="font-weight:700;font-size:16px">换上「' + t + '」人设？</div>' +
+    '<div class="muted" style="margin-bottom:8px">它会用这个语气跟你说话，随时可以换</div>' +
+    '<div style="display:flex;justify-content:center;margin:4px 0 12px">' + mochiSVG(L.face, 116) + '</div>' +
+    '<div class="bubble" style="margin-bottom:14px;text-align:left">' + L.text + '</div>' +
+    '<button class="mbtn" onclick="applyPersona(\'' + t + '\')">就它了</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="closeModal()">再想想</button>' +
+    '</div>');
+}
+function applyPersona(t) {
+  setTone(t);
+  closeModal();
+  toast('Mochi 换上「' + t + '」了');
+}
+function openDecide(i) {
+  const e = entries[i];
+  const stMap = { ok: '兑现了', chg: '后来变了', wait: '还在等' };
+  const cur = e.review ? stMap[e.review] : '待回访';
+  openModal(
+    '<div style="font-weight:700;margin-bottom:2px">决定卡 · 回访</div>' +
+    '<div class="muted" style="margin-bottom:10px">' + (e.date || '9月3日 周四') + ' ' + e.time + ' 立的字据</div>' +
+    '<div class="bubble" style="margin-bottom:14px">' + e.text + '</div>' +
+    '<div class="muted" style="margin-bottom:6px">现在回头看，它怎么样了？</div>' +
+    [['ok', '兑现了', '#5F7443'], ['chg', '后来变了', '#8A3B3B'], ['wait', '还在等', '#8A6D1F']].map(x =>
+      '<div class="mrow-opt" onclick="markDecide(' + i + ',\'' + x[0] + '\')"><span style="color:' + x[2] + ';font-weight:600">' + x[1] + '</span>' + (cur === x[1] ? '<span class="muted">当前</span>' : '<span class="muted">›</span>') + '</div>').join('') +
+    '<textarea id="rvNote" class="dfield" style="width:100%;height:64px;resize:none;margin-top:10px" placeholder="想写两句回访感想吗？（可不写）">' + (e.reviewNote || '') + '</textarea>' +
+    '<button class="mbtn" style="margin-top:10px" onclick="saveDecide(' + i + ')">保存回访</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="closeModal()">关闭</button>');
+}
+function markDecide(i, mark) {
+  entries[i].review = mark;
+  renderMemory();
+  const names = { ok: '兑现了', chg: '后来变了', wait: '还在等' };
+  toast('标记：' + names[mark]);
+}
+function saveDecide(i) {
+  entries[i].reviewNote = document.getElementById('rvNote').value.trim();
+  renderMemory();
+  closeModal();
+  toast('回访记好了 · 这张决定卡闭环了');
+}
+/* ================= 装扮屋 ================= */
+const WARDROBE = {
+  hat: [['none', '不戴'], ['beret', '贝雷帽'], ['bow', '蝴蝶结'], ['crown', '小皇冠'], ['beanie', '绒球冷帽']],
+  blush: [['none', '素颜'], ['pink', '元气粉'], ['peach', '蜜桃橘'], ['heart', '小爱心']]
+};
+const FIT_NAMES = { hat: '帽子', blush: '腮红' };
+function fitSummary() {
+  const s = [outfit.hat, outfit.blush].every(v => v === 'none' || v === 'pink')
+    ? '素颜麻薯' : '已打扮';
+  return s;
+}
+function openWardrobe() {
+  const sec = slot =>
+    '<div class="wsec"><div class="wt">' + FIT_NAMES[slot] + '</div><div class="wgrid">' +
+    WARDROBE[slot].map(it =>
+      '<button class="witem' + (outfit[slot] === it[0] ? ' on' : '') + '" data-slot="' + slot + '" data-val="' + it[0] + '" onclick="fitItem(\'' + slot + '\',\'' + it[0] + '\')">' + it[1] + '</button>').join('') +
+    '</div></div>';
+  openModal(
+    '<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:2px">装扮屋</div>' +
+    '<div class="muted" style="text-align:center;margin-bottom:10px">点一下就试穿，全 App 的 Mochi 都会换上</div>' +
+    '<div style="display:flex;justify-content:center;margin-bottom:12px" id="fitPrev"></div>' +
+    sec('hat') + sec('blush') +
+    '<button class="mbtn" onclick="saveFit()">就穿这身</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="resetFit()">脱光光（恢复素颜）</button>');
+  renderFitPrev();
+}
+function renderFitPrev() {
+  const p = document.getElementById('fitPrev');
+  if (p) p.innerHTML = mochiSVG('happy', 120);
+}
+function fitItem(slot, val) {
+  outfit[slot] = val;
+  document.querySelectorAll('.witem[data-slot="' + slot + '"]').forEach(b => b.classList.toggle('on', b.dataset.val === val));
+  renderFitPrev();
+  refreshAllMochi();
+}
+function refreshAllMochi() {
+  document.getElementById('homeMochi').innerHTML = mochiSVG('plain', 72);
+  document.getElementById('mineMochi').innerHTML = mochiSVG('wave', 110);
+  document.getElementById('pinFace').innerHTML = mochiSVG('happy', 54);
+  setTone(curTone);
+  document.getElementById('fitVal').textContent =
+    (fitSummary() === '素颜麻薯' ? '素颜麻薯 · 去挑帽子、腮红'
+      : '当前：' + WARDROBE.hat.find(x => x[0] === outfit.hat)[1] + ' · ' + WARDROBE.blush.find(x => x[0] === outfit.blush)[1]);
+}
+function saveFit() {
+  closeModal();
+  refreshAllMochi();
+  toast('就穿这身 · Mochi 好看了');
+}
+function resetFit() {
+  outfit = { hat: 'none', blush: 'pink' };
+  openWardrobe();
+  refreshAllMochi();
+}
+function openDnd() {
+  const cur = document.getElementById('dndVal').textContent.replace(' ›', '');
+  let sh = 22, sm = 30, eh = 8, em = 30, off = false;
+  if (cur === '关闭') { off = true; }
+  else {
+    const parts = cur.split(' – ');
+    sh = parseInt(parts[0].split(':')[0], 10); sm = parseInt(parts[0].split(':')[1], 10);
+    eh = parseInt(parts[1].split(':')[0], 10); em = parseInt(parts[1].split(':')[1], 10);
+  }
+  const col = (id, val, max) => {
+    let h = '';
+    for (let v = 0; v <= max; v++) h += '<option ' + (v === val ? 'selected' : '') + '>' + String(v).padStart(2, '0') + '</option>';
+    return '<select class="tsel" id="' + id + '">' + h + '</select>';
+  };
+  openModal(
+    '<div style="font-weight:700;margin-bottom:2px">免打扰时段</div>' +
+    '<div class="muted" style="margin-bottom:14px">这段时间 Mochi 不推送；晚安回信也会等你醒来再给你。点数字上下滑动选。</div>' +
+    '<div class="prow"><span class="plab">开始</span>' + col('dndSH', sh, 23) + '<span class="pcolon">:</span>' + col('dndSM', sm, 59) + '</div>' +
+    '<div class="prow"><span class="plab">结束</span>' + col('dndEH', eh, 23) + '<span class="pcolon">:</span>' + col('dndEM', em, 59) + '</div>' +
+    '<div class="mrow-opt" style="border-bottom:none;padding-top:4px" onclick="setDndOff()"><span>关闭免打扰</span><span class="muted">随时都可以打扰我</span></div>' +
+    '<button class="mbtn" style="margin-top:10px" onclick="saveDnd()">保存</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="closeModal()">取消</button>');
+  if (off) { document.getElementById('dndSH').disabled = document.getElementById('dndSM').disabled = document.getElementById('dndEH').disabled = document.getElementById('dndEM').disabled = true; }
+}
+function saveDnd() {
+  const v = id => document.getElementById(id).value;
+  const t = v('dndSH') + ':' + v('dndSM') + ' – ' + v('dndEH') + ':' + v('dndEM');
+  document.getElementById('dndVal').textContent = t + ' ›';
+  closeModal();
+  toast('免打扰已设置：' + t);
+}
+function setDndOff() {
+  document.getElementById('dndVal').textContent = '关闭 ›';
+  closeModal();
+  toast('免打扰已关闭，Mochi 随时都在');
+}
+const weeklySummary = '这周你两次提到烘焙课，一次比一次认真；钱存得不多，但在存。跑步也回来了，膝盖没事——这是个好信号。';
+function openWeekly() {
+  const n = entries.length;
+  const dec = entries.filter(e => e.badge === '决定卡').length;
+  openModal(
+    '<div style="text-align:center;font-weight:700;font-size:17px">本周一盒</div>' +
+    '<div class="muted" style="text-align:center;margin-bottom:12px">9 月第 1 周 · 周日晚上自动装盒</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+    [['碎片', n + ' 条'], ['决定', dec + ' 个'], ['存下', '200 元']].map(x =>
+      '<div style="flex:1;background:var(--cream);border:2px solid var(--line);border-radius:14px;padding:10px;text-align:center"><div style="font-size:12px;color:var(--sub)">' + x[0] + '</div><div style="font-weight:700;margin-top:2px">' + x[1] + '</div></div>').join('') +
+    '</div>' +
+    '<div class="bubble">' + weeklySummary + '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px">' +
+    '<button class="mbtn" style="flex:1" id="wkPlay" onclick="playWeekly()">听这周</button>' +
+    '<button class="mbtn ghost" style="flex:1" onclick="openShare()">分享给家人</button>' +
+    '</div>' +
+    '<button class="mbtn" style="margin-top:8px" onclick="closeModal();toast(\'收进回忆了\')">收下</button>');
+}
+function playWeekly() {
+  const b = document.getElementById('wkPlay');
+  if (!('speechSynthesis' in window)) { toast('这台浏览器不支持朗读'); return; }
+  if (speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    if (b) b.textContent = '听这周';
+    return;
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(weeklySummary);
+  u.lang = 'zh-CN';
+  u.rate = 0.95;
+  const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.indexOf('zh') === 0);
+  if (zh.length) u.voice = zh[0];
+  u.onend = () => { const x = document.getElementById('wkPlay'); if (x) x.textContent = '听这周'; };
+  speechSynthesis.speak(u);
+  if (b) b.textContent = '停止朗读';
+}
+function openShare() {
+  speechSynthesis.cancel();
+  const t = [
+    ['微信', '<circle cx="7" cy="9" r="4.5" fill="#A9D18E" stroke="#5F7443" stroke-width="1.4"/><circle cx="13.5" cy="11.5" r="3.8" fill="#CDE3BC" stroke="#5F7443" stroke-width="1.4"/>'],
+    ['朋友圈', '<circle cx="10" cy="10" r="6.5" fill="none" stroke="#5F7443" stroke-width="1.6"/><circle cx="10" cy="10" r="2" fill="#A9D18E"/>'],
+    ['存成长图', '<rect x="4.5" y="3.5" width="11" height="13" rx="2" fill="#FFF7EC" stroke="#5F7443" stroke-width="1.5"/><path d="M6.5 13 l2.5-3 2 2.2 1.5-1.5 2 2.3" fill="none" stroke="#7A5C49" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="7.5" r="1.2" fill="#FFB3B3"/>'],
+    ['拷贝文字', '<rect x="3.5" y="3.5" width="9" height="11" rx="2" fill="#FFF7EC" stroke="#5F7443" stroke-width="1.5"/><rect x="7.5" y="5.5" width="9" height="11" rx="2" fill="#FFE28A" stroke="#7A5C49" stroke-width="1.5"/>']
+  ];
+  openModal(
+    '<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:4px">分享给家人</div>' +
+    '<div class="muted" style="text-align:center;margin-bottom:14px">正式版会生成一张好看的周报长图</div>' +
+    '<div style="display:flex;justify-content:space-around;margin-bottom:14px">' +
+    t.map((x, i) =>
+      '<div style="text-align:center;cursor:pointer" onclick="shareTo(' + i + ')"><div style="width:54px;height:54px;border-radius:50%;background:var(--cream);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;margin:0 auto 6px"><svg viewBox="0 0 20 20" width="30" height="30">' + x[1] + '</svg></div><div style="font-size:12.5px">' + x[0] + '</div></div>').join('') +
+    '</div>' +
+    '<button class="mbtn ghost" onclick="closeModal()">取消</button>');
+}
+function shareTo(i) {
+  if (i === 3) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(weeklySummary).then(() => toast('总结已拷贝，去粘贴给家人吧')).catch(() => toast('长按总结文字，手动拷贝也一样'));
+    } else toast('这台浏览器不支持一键拷贝');
+    return;
+  }
+  toast('原型模拟 · 正式版会调起这个分享');
+}
+function openCapsule() {
+  openModal(
+    '<div style="font-weight:700;margin-bottom:2px">时间胶囊</div>' +
+    '<div class="muted" style="margin-bottom:10px">写给一年后的自己，2027 年 9 月 3 日才会打开</div>' +
+    '<textarea id="capText" class="dfield" style="width:100%;height:90px;resize:none" placeholder="现在最想对未来说什么？"></textarea>' +
+    '<button class="mbtn" style="margin-top:10px" onclick="sealCapsule()">封存，一年后见</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="closeModal()">再想想</button>');
+}
+function sealCapsule() {
+  const v = document.getElementById('capText').value.trim() || '（什么都没写，但心意到了）';
+  closeModal();
+  document.getElementById('capVal').textContent = '1 个在路上 · 2027-09-03 开 ›';
+  toast('封好了 · 一年后见');
+}
+function doExport() {
+  const txt = '我的 Mochi 记忆\n\n' + entries.map(e =>
+    (e.date || '9月3日 周四') + ' ' + e.time + (e.badge ? ' [' + e.badge + ']' : '') + '\n' + e.text
+  ).join('\n\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
+  a.download = 'Mochi-我的记忆.txt';
+  a.click();
+  toast('已导出 · 一本小日记');
+}
+function askDelete() {
+  openModal(
+    '<div style="text-align:center">' +
+    '<div style="display:flex;justify-content:center">' + mochiSVG('smug', 90) + '</div>' +
+    '<div style="font-weight:700;margin:4px 0 4px">真的要全部删掉吗？</div>' +
+    '<div class="muted" style="margin-bottom:12px">Mochi 只提醒这一次：删了就真的没了。</div>' +
+    '<button class="mbtn danger" onclick="doDelete()">删干净</button>' +
+    '<button class="mbtn ghost" style="margin-top:8px" onclick="closeModal()">手滑了</button>' +
+    '</div>');
+}
+function doDelete() {
+  entries.length = 0;
+  closeModal();
+  renderTimeline();
+  renderMemory();
+  document.getElementById('timeline').innerHTML = '<div class="muted" style="padding:6px 2px">空空的。点底下的麻薯，重新开始粘。</div>';
+  document.getElementById('memCount').textContent = '0 条碎片，Mochi 揉了揉肚子';
+  toast('删干净了。随时重新开始');
+}
+function prefillPhoto() {
+  if (decideMode) { toast('先退出决定卡模式'); return; }
+  const i = document.getElementById('noteInput');
+  i.value += '〔一张照片〕';
+  i.focus();
+  toast('真机会打开相机，这里先放个占位');
+}
+function prefillMic() {
+  if (decideMode) { toast('先退出决定卡模式'); return; }
+  const i = document.getElementById('noteInput');
+  i.value += '〔说了一句：〕';
+  i.focus();
+  toast('真机会录音并转成文字');
+}
+function prefillMoney() {
+  if (decideMode) { toast('先退出决定卡模式'); return; }
+  const i = document.getElementById('noteInput');
+  i.value += '存了 ';
+  i.focus();
+  toast('写上金额就行，Mochi 认得钱');
+}
+
+/* ================= 初始化 ================= */
+document.getElementById('homeMochi').innerHTML = mochiSVG('plain', 72);
+document.getElementById('pinmo').innerHTML = mochiSVG('pinch', 170);
+document.getElementById('pinFace').innerHTML = mochiSVG('happy', 54);
+document.getElementById('notifMochi').innerHTML = mochiSVG('note', 46);
+document.getElementById('mineMochi').innerHTML = mochiSVG('wave', 110);
+entries.push(
+  { date: '9月2日 周三', time: '07:50', text: '地铁上把《置身事内》读完了，最后一章划了很多线。' },
+  { date: '9月2日 周三', time: '19:30', text: '决定把烘焙课换到十月的班——九月太忙了。', badge: '决定卡', cls: 'decide' },
+  { date: '9月1日 周二', time: '12:20', text: '午饭 28，便利店。', badge: '记账' },
+  { date: '8月3日 周日', time: '18:05', text: '中介说采光好，但没给书面报价。' }
+);
+setTone('温柔');
+renderTimeline();
+renderMemory();
+document.getElementById('memSearch').addEventListener('input', renderMemory);
+
+// 调试/分享入口：URL 带 #letter 直接打开回信页，#sheet 直接打开捏一捏弹层
+const hash = location.hash.replace('#', '');
+const viewMap = { letter: 'view-letter', memory: 'view-memory', mine: 'view-mine' };
+if (viewMap[hash]) {
+  document.querySelector('.view.active').classList.remove('active');
+  document.getElementById(viewMap[hash]).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === viewMap[hash]));
+} else if (hash === 'sheet') {
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+} else {
+  setTimeout(showNotif, 1800);   // 正常进入时，1.8 秒后自动演示一次贴心贴
+}
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
