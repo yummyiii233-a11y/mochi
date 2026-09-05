@@ -279,8 +279,8 @@
     <section id="view-today" class="view active">
       <div class="greet">
         <div class="hello">
-          <h2>9月3日 周四</h2>
-          <div class="muted">晚上好，今天记了 4 条，Mochi 都粘好了</div>
+          <h2 id="todayTitle"></h2>
+          <div class="muted" id="todayCount"></div>
         </div>
         <div style="display:flex;align-items:center">
           <button class="bell" onclick="showNotif()" title="贴心贴">
@@ -400,8 +400,9 @@
 
       <div class="card">
         <h3>数据与隐私</h3>
-        <div class="mrow"><span>存储方式</span><span class="muted">端侧优先，默认不上云</span></div>
-        <div class="mrow" onclick="doExport()" style="cursor:pointer"><span>导出我的记忆</span><span class="muted">›</span></div>
+        <div class="mrow"><span>存储方式</span><span class="muted">只存在这台设备上，不上云</span></div>
+        <div class="mrow" onclick="doExport()" style="cursor:pointer"><span>导出我的记忆</span><span class="muted">写成一篇小故事 ›</span></div>
+        <div class="mrow" onclick="clearDemo()" style="cursor:pointer"><span>清空示例数据</span><span class="muted">只留下我自己记的 ›</span></div>
         <div class="mrow" onclick="askDelete()" style="cursor:pointer"><span>彻底删除</span><span class="muted">›</span></div>
       </div>
 
@@ -535,13 +536,31 @@ function mochiSVG(expr = 'happy', w = 110) {
   return '<svg viewBox="' + vb + '" width="' + w + '" height="' + w + '">' + inner + '</svg>';
 }
 
-/* ================= 数据（示例） ================= */
-let entries = [
-  { time: '08:12', text: '早饭做了鸡蛋饼，比想象中成功。' },
-  { time: '13:40', text: '决定报十月的烘焙课——想了三个月，终于动手了。', badge: '决定卡', cls: 'decide' },
-  { time: '16:05', text: '跑了 3 公里，膝盖没事，放心。' },
-  { time: '21:00', text: '存了 200。', badge: '记账' },
+/* ================= 数据（本机持久化：每人自己的故事只存在这台设备上） ================= */
+const LS_KEY = 'mochi-state-v1';
+const NOW = new Date();
+const WD = ['日', '一', '二', '三', '四', '五', '六'];
+const TODAY = (NOW.getMonth() + 1) + '月' + NOW.getDate() + '日 周' + WD[NOW.getDay()];
+function dOff(n) { const d = new Date(NOW); d.setDate(d.getDate() + n); return d; }
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({ entries: entries, outfit: outfit, tone: curTone }));
+  } catch (e) { /* 隐私模式等存不了就算了，不崩 */ }
+}
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { return null; }
+}
+const SAMPLES = [
+  { time: '08:12', text: '早饭做了鸡蛋饼，比想象中成功。', demo: true },
+  { time: '13:40', text: '决定报十月的烘焙课——想了三个月，终于动手了。', badge: '决定卡', cls: 'decide', demo: true },
+  { time: '16:05', text: '跑了 3 公里，膝盖没事，放心。', demo: true },
+  { time: '21:00', text: '存了 200。', badge: '记账', demo: true },
+  { date: '9月2日 周三', time: '07:50', text: '地铁上把《置身事内》读完了，最后一章划了很多线。', demo: true },
+  { date: '9月2日 周三', time: '19:30', text: '决定把烘焙课换到十月的班——九月太忙了。', badge: '决定卡', cls: 'decide', demo: true },
+  { date: '9月1日 周二', time: '12:20', text: '午饭 28，便利店。', badge: '记账', demo: true },
+  { date: '8月3日 周日', time: '18:05', text: '中介说采光好，但没给书面报价。', demo: true },
 ];
+let entries = [];
 const letters = {
   '温柔': { face: 'hug', text: '这周想存 500，实际存下了 200。不过刚交完房租的月份，能剩下已经是胜利了。要不要把下周目标调成 300？我陪你慢慢来。' },
   '幽默': { face: 'pinch', text: '钱包这周轻了 300 克……啊不，300 块。500 的目标完成了 40%，按麻薯的弹性，捏一捏下周就弹回来了。' },
@@ -556,9 +575,13 @@ function entryRow(e, grams) {
     (e.badge ? '<span class="badge ' + (e.cls || '') + '">' + e.badge + '</span>' : '') + txt + '</div></div>';
 }
 function renderTimeline() {
-  document.getElementById('timeline').innerHTML = entries
-    .filter(e => !e.date || e.date === '9月3日 周四')
-    .map(e => entryRow(e)).join('');
+  const todays = entries.filter(e => !e.date || e.date === TODAY);
+  document.getElementById('timeline').innerHTML = todays.map(e => entryRow(e)).join('')
+    || '<div class="muted" style="padding:6px 2px">今天还空着。想记的时候，捏一下底下的麻薯。</div>';
+  document.getElementById('todayTitle').textContent = TODAY;
+  document.getElementById('todayCount').textContent = todays.length
+    ? '今天记了 ' + todays.length + ' 条，Mochi 都粘好了'
+    : '今天的第一条，从捏一捏开始';
 }
 const personaHints = {
   '温柔': '当前：温柔 —— "能剩下已经是胜利了，我陪你慢慢来。"',
@@ -575,6 +598,7 @@ function setTone(t) {
   document.getElementById('personaHint').textContent = personaHints[t];
   document.getElementById('letterToneHint').textContent = '当前人设：' + t;
   document.querySelectorAll('.tone').forEach(x => x.classList.toggle('on', x.dataset.tone === t));
+  saveState();
 }
 let switchingTab = false;
 function switchTab(btn) {
@@ -632,7 +656,8 @@ function saveNote() {
     text = input.value.trim() || '（这条什么都没写，也粘好了）';
     input.value = '';
   }
-  entries.push({ date: '9月3日 周四', time: time, text: text, badge: badge, cls: cls });
+  entries.push({ date: TODAY, time: time, text: text, badge: badge, cls: cls });
+  saveState();
   renderTimeline();
   renderMemory();
   closeSheet();
@@ -668,22 +693,23 @@ function setFilter(btn) {
 /* 原型的"今天" = 2026-09-03，与首页日期、时间胶囊一致 */
 function parseDay(s) {
   const m = String(s || '').match(/(\d{1,2})月(\d{1,2})日/);
-  return m ? new Date(2026, m[1] - 1, m[2]) : new Date(2026, 8, 3);
+  const Y = NOW.getFullYear();
+  return m ? new Date(Y, m[1] - 1, m[2]) : new Date(Y, NOW.getMonth(), NOW.getDate());
 }
 const CN_MO = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10, '十一': 11, '十二': 12 };
-function mkD(mo, d) { return new Date(2026, mo - 1, d); }
+function mkD(mo, d) { return new Date(NOW.getFullYear(), mo - 1, d); }
 function timeRange(q) {
   let m;
   if (m = q.match(/(\d{1,2})月(\d{1,2})[日号]/)) { const mo = +m[1]; return { label: m[1] + '月' + m[2] + '日', from: mkD(mo, +m[2]), to: mkD(mo, +m[2]) }; }
-  if (/今天/.test(q)) return { label: '今天', from: mkD(9, 3), to: mkD(9, 3) };
-  if (/昨天/.test(q)) return { label: '昨天', from: mkD(9, 2), to: mkD(9, 2) };
-  if (/前天/.test(q)) return { label: '前天', from: mkD(9, 1), to: mkD(9, 1) };
-  if (/这周|本周/.test(q)) return { label: '这周', from: mkD(8, 31), to: mkD(9, 3) };
-  if (/上周|上星期/.test(q)) return { label: '上周', from: mkD(8, 24), to: mkD(8, 30) };
-  if (/上个月|上月/.test(q)) return { label: '上个月（8月）', from: mkD(8, 1), to: mkD(8, 31) };
-  if (/这个月|本月/.test(q)) return { label: '这个月（9月）', from: mkD(9, 1), to: mkD(9, 30) };
-  if (m = q.match(/最近(\d{1,3})天/)) { const n = +m[1]; return { label: '最近' + n + '天', from: mkD(9, 4 - n), to: mkD(9, 3) }; }
-  if (/最近|前阵子/.test(q)) return { label: '最近两周', from: mkD(8, 21), to: mkD(9, 3) };
+  if (/今天/.test(q)) return { label: '今天', from: dOff(0), to: dOff(0) };
+  if (/昨天/.test(q)) return { label: '昨天', from: dOff(-1), to: dOff(-1) };
+  if (/前天/.test(q)) return { label: '前天', from: dOff(-2), to: dOff(-2) };
+  if (/这周|本周/.test(q)) { const mon = dOff(-((NOW.getDay() + 6) % 7)); return { label: '这周', from: mon, to: dOff(0) }; }
+  if (/上周|上星期/.test(q)) { const mon = dOff(-((NOW.getDay() + 6) % 7) - 7); const sun = new Date(mon); sun.setDate(sun.getDate() + 6); return { label: '上周', from: mon, to: sun }; }
+  if (/上个月|上月/.test(q)) { const M = NOW.getMonth(); return { label: '上个月', from: new Date(NOW.getFullYear(), M - 1, 1), to: new Date(NOW.getFullYear(), M, 0) }; }
+  if (/这个月|本月/.test(q)) { const M = NOW.getMonth(); return { label: '这个月', from: new Date(NOW.getFullYear(), M, 1), to: new Date(NOW.getFullYear(), M + 1, 0) }; }
+  if (m = q.match(/最近(\d{1,3})天/)) { const n = +m[1]; return { label: '最近' + n + '天', from: dOff(1 - n), to: dOff(0) }; }
+  if (/最近|前阵子/.test(q)) return { label: '最近两周', from: dOff(-13), to: dOff(0) };
   if (m = q.match(/(\d{1,2})月/)) { const mo = +m[1]; return { label: m[1] + '月', from: mkD(mo, 1), to: mkD(mo + 1, 0) }; }
   if (m = q.match(/([一二三四五六七八九十]{1,2})月/)) { const mo = CN_MO[m[1]]; return { label: m[1] + '月', from: mkD(mo, 1), to: mkD(mo + 1, 0) }; }
   return null;
@@ -748,7 +774,7 @@ function runQuery(q) {
   }
   return { list: list, grams: grams, answer: buildAnswer(q, range, decide, money, topics, list) };
 }function buildAnswer(q, range, decide, money, topics, list) {
-  const qt = e => '· ' + (e.date || '9月3日 周四').replace(/ 周./, '') + '：「' + trunc(e.text, 24) + '」';
+  const qt = e => '· ' + (e.date || TODAY).replace(/ 周./, '') + '：「' + trunc(e.text, 24) + '」';
   const qq = arr => arr.map(x => '<div class="qq">' + qt(x) + '</div>').join('');
   if (!list.length) return { ans: '<b>这里没翻到。</b>换个说法试试——「上个月在想什么」「存了多少钱」都可以，下面的快捷问法也能直接点。', face: pickFace('lost') };
   if (money) {
@@ -808,13 +834,13 @@ function renderMemory() {
     html = list.map(e => {
       const stMap = { ok: ['兑现了', 'ok'], chg: ['后来变了', 'chg'], wait: ['还在等', ''] };
       const st = e.review ? stMap[e.review] : ['待回访', ''];
-      return '<div class="deci" onclick="openDecide(' + entries.indexOf(e) + ')"><span class="st ' + st[1] + '">' + st[0] + '</span><div class="dt">' + (e.date || '9月3日 周四') + ' · ' + e.time + '</div><div class="dx">' + e.text + '</div>' +
+      return '<div class="deci" onclick="openDecide(' + entries.indexOf(e) + ')"><span class="st ' + st[1] + '">' + st[0] + '</span><div class="dt">' + (e.date || TODAY) + ' · ' + e.time + '</div><div class="dx">' + e.text + '</div>' +
         (e.reviewNote ? '<div class="ref" style="margin:10px 0 0">回访：' + e.reviewNote + '</div>' : '') + '</div>';
     }).join('') || '<div class="muted" style="padding:8px 2px">还没有决定卡。哪天你做了决定，来这里立个字据。</div>';
   } else {
     let lastDate = '';
     list.forEach(e => {
-      const d = e.date || '9月3日 周四';
+      const d = e.date || TODAY;
       if (d !== lastDate) { html += '<div class="dayh">' + d + '</div>'; lastDate = d; }
       html += entryRow(e, grams);
     });
@@ -881,7 +907,7 @@ function openDecide(i) {
   const cur = e.review ? stMap[e.review] : '待回访';
   openModal(
     '<div style="font-weight:700;margin-bottom:2px">决定卡 · 回访</div>' +
-    '<div class="muted" style="margin-bottom:10px">' + (e.date || '9月3日 周四') + ' ' + e.time + ' 立的字据</div>' +
+    '<div class="muted" style="margin-bottom:10px">' + (e.date || TODAY) + ' ' + e.time + ' 立的字据</div>' +
     '<div class="bubble" style="margin-bottom:14px">' + e.text + '</div>' +
     '<div class="muted" style="margin-bottom:6px">现在回头看，它怎么样了？</div>' +
     [['ok', '兑现了', '#5F7443'], ['chg', '后来变了', '#8A3B3B'], ['wait', '还在等', '#8A6D1F']].map(x =>
@@ -892,15 +918,26 @@ function openDecide(i) {
 }
 function markDecide(i, mark) {
   entries[i].review = mark;
+  saveState();
   renderMemory();
   const names = { ok: '兑现了', chg: '后来变了', wait: '还在等' };
   toast('标记：' + names[mark]);
 }
 function saveDecide(i) {
   entries[i].reviewNote = document.getElementById('rvNote').value.trim();
+  saveState();
   renderMemory();
   closeModal();
   toast('回访记好了 · 这张决定卡闭环了');
+}
+function clearDemo() {
+  const demos = entries.filter(e => e.demo).length;
+  if (!demos) { toast('示例已经清过啦，剩下的都是你自己的'); return; }
+  entries = entries.filter(e => !e.demo);
+  saveState();
+  renderTimeline();
+  renderMemory();
+  toast('示例清掉了 · 现在只有你的故事');
 }
 /* ================= 装扮屋 ================= */
 const WARDROBE = {
@@ -934,6 +971,7 @@ function renderFitPrev() {
 }
 function fitItem(slot, val) {
   outfit[slot] = val;
+  saveState();
   document.querySelectorAll('.witem[data-slot="' + slot + '"]').forEach(b => b.classList.toggle('on', b.dataset.val === val));
   renderFitPrev();
   refreshAllMochi();
@@ -954,6 +992,7 @@ function saveFit() {
 }
 function resetFit() {
   outfit = { hat: 'none', blush: 'pink' };
+  saveState();
   openWardrobe();
   refreshAllMochi();
 }
@@ -1097,7 +1136,7 @@ function storyLine(e, glue) {
 }
 function buildStory() {
   const days = {};
-  entries.forEach(e => { const d = (e.date || '9月3日 周四').split(' ')[0]; (days[d] = days[d] || []).push(e); });
+  entries.forEach(e => { const d = (e.date || TODAY).split(' ')[0]; (days[d] = days[d] || []).push(e); });
   const dayNum = d => { const m = d.match(/(\d{1,2})月(\d{1,2})日/); return m ? +m[1] * 100 + +m[2] : 999; };
   const order = Object.keys(days).sort((a, b) => dayNum(a) - dayNum(b));
   const T = TONE_STORY[curTone] || TONE_STORY['温柔'];
@@ -1118,7 +1157,7 @@ function downloadText(name, text) {
 function doExport() {
   const story = buildStory();
   const raw = '我的 Mochi 记忆\n\n' + entries.map(e =>
-    (e.date || '9月3日 周四') + ' ' + e.time + (e.badge ? ' [' + e.badge + ']' : '') + '\n' + e.text
+    (e.date || TODAY) + ' ' + e.time + (e.badge ? ' [' + e.badge + ']' : '') + '\n' + e.text
   ).join('\n\n');
   openModal(
     '<div style="text-align:center;font-weight:700;font-size:16px;margin-bottom:2px">导出我的记忆</div>' +
@@ -1146,7 +1185,8 @@ function askDelete() {
     '</div>');
 }
 function doDelete() {
-  entries.length = 0;
+  entries = [];
+  saveState();
   closeModal();
   renderTimeline();
   renderMemory();
@@ -1182,13 +1222,17 @@ document.getElementById('pinmo').innerHTML = mochiSVG('pinch', 170);
 document.getElementById('pinFace').innerHTML = mochiSVG('happy', 54);
 document.getElementById('notifMochi').innerHTML = mochiSVG('note', 46);
 document.getElementById('mineMochi').innerHTML = mochiSVG('wave', 110);
-entries.push(
-  { date: '9月2日 周三', time: '07:50', text: '地铁上把《置身事内》读完了，最后一章划了很多线。' },
-  { date: '9月2日 周三', time: '19:30', text: '决定把烘焙课换到十月的班——九月太忙了。', badge: '决定卡', cls: 'decide' },
-  { date: '9月1日 周二', time: '12:20', text: '午饭 28，便利店。', badge: '记账' },
-  { date: '8月3日 周日', time: '18:05', text: '中介说采光好，但没给书面报价。' }
-);
-setTone('温柔');
+(function restoreOrDemo() {
+  const s = loadState();
+  if (s && Array.isArray(s.entries)) {
+    entries = s.entries;                                  // 老朋友：读回自己的记忆
+    if (s.outfit) outfit = s.outfit;
+    if (s.tone && letters[s.tone]) curTone = s.tone;
+  } else {
+    entries = SAMPLES.slice();                            // 第一次来：给一套示例看看玩法
+  }
+})();
+setTone(curTone);
 renderTimeline();
 renderMemory();
 document.getElementById('memSearch').addEventListener('input', renderMemory);

@@ -1,5 +1,5 @@
 /* Mochi PWA Service Worker：离线可打开（缓存原型页与图标） */
-const CACHE = 'mochi-v0.4';
+const CACHE = 'mochi-v0.5';
 const ASSETS = [
   './',
   './index.html',
